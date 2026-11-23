@@ -1,0 +1,2883 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UEBA | SOC Dashboard</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <style>
+        .investigation-panel {
+            display: none;
+            margin-top: 25px;
+            padding: 22px;
+            background: #101b2c;
+            border: 1px solid #334155;
+            border-radius: 10px;
+        }
+
+        .investigation-panel h3 {
+            margin-bottom: 18px;
+            color: #e2e8f0;
+        }
+
+        .investigation-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .investigation-field {
+            background: #1e293b;
+            padding: 15px;
+            border-radius: 7px;
+            overflow-wrap: anywhere;
+        }
+
+        .investigation-field label {
+            display: block;
+            color: #94a3b8;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .investigation-field p {
+            color: #e2e8f0;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .notes-area {
+            width: 100%;
+            min-height: 120px;
+            resize: vertical;
+            padding: 12px;
+            margin-top: 10px;
+            color: #e2e8f0;
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 7px;
+            font: inherit;
+        }
+
+        .investigation-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+        }
+
+        .investigation-btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+            background: #2563eb;
+        }
+
+        .investigation-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .close-btn {
+            background: #475569;
+        }
+
+        .view-btn {
+            padding: 8px 11px;
+            background: #0f766e;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* IP INVESTIGATION STYLES */
+
+        .ip-investigation-section {
+            margin-top: 22px;
+            padding: 18px;
+            background: #0f1a2b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+        }
+
+        .ip-investigation-section h4 {
+            margin: 0 0 14px;
+            color: #e2e8f0;
+        }
+
+        .ip-count-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin: 14px 0 18px;
+        }
+
+        .ip-count-card {
+            padding: 15px;
+            background: #1e293b;
+            border-radius: 7px;
+        }
+
+        .ip-count-card span {
+            display: block;
+            color: #94a3b8;
+            font-size: 12px;
+            margin-bottom: 7px;
+        }
+
+        .ip-count-card strong {
+            color: #e2e8f0;
+            font-size: 25px;
+        }
+
+        .ip-table-wrap {
+            overflow-x: auto;
+            margin-top: 12px;
+        }
+
+        .ip-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 520px;
+        }
+
+        .ip-table th,
+        .ip-table td {
+            padding: 11px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+            color: #e2e8f0;
+        }
+
+        .ip-table th {
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .ip-status-success {
+            color: #22c55e !important;
+            font-weight: 600;
+        }
+
+        .ip-status-failed {
+            color: #f87171 !important;
+            font-weight: 600;
+        }
+
+        .ip-source-note {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 12px;
+        }
+
+        .ip-loading,
+        .ip-error,
+        .ip-empty {
+            color: #94a3b8;
+            margin: 10px 0;
+        }
+
+        /* AUDIT HISTORY STYLES */
+
+        .audit-btn {
+            padding: 8px 11px;
+            background: #6d28d9;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .audit-section {
+            margin-top: 22px;
+            padding: 18px;
+            background: #0f1a2b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+        }
+
+        .audit-section h4 {
+            margin: 0 0 14px;
+            color: #e2e8f0;
+        }
+
+        .audit-entry {
+            position: relative;
+            margin: 0 0 14px 8px;
+            padding: 12px 15px;
+            border-left: 3px solid #8b5cf6;
+            background: #1e293b;
+            border-radius: 0 7px 7px 0;
+        }
+
+        .audit-entry:last-child {
+            margin-bottom: 0;
+        }
+
+        .audit-entry strong {
+            color: #c4b5fd;
+        }
+
+        .audit-meta {
+            margin-top: 6px;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .audit-empty,
+        .audit-error {
+            color: #94a3b8;
+            margin: 8px 0 0;
+        }
+
+        #investigationMessage {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 700px) {
+            .investigation-grid,
+            .ip-count-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* INCIDENT SEARCH AND FILTER STYLES */
+
+        .incident-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 18px 0;
+            padding: 15px;
+            background: #0f1a2b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+        }
+
+        .incident-filters input,
+        .incident-filters select {
+            padding: 10px 12px;
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        .incident-filters input {
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .incident-filters select {
+            min-width: 150px;
+        }
+
+        .incident-filters input:focus,
+        .incident-filters select:focus {
+            border-color: #3b82f6;
+        }
+
+        @media (max-width: 700px) {
+            .incident-filters {
+                flex-direction: column;
+            }
+
+            .incident-filters input,
+            .incident-filters select {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+    <h2>UEBA <span>SOC</span></h2>
+
+    <p class="menu-title">SECURITY OPERATIONS</p>
+
+    <a class="active" href="/">Dashboard</a>
+    <a href="#analytics">Risk Analytics</a>
+    <a href="#login-activity">Login Monitoring</a>
+    <a href="#users">User Risk Analysis</a>
+    <a href="#alerts">Incident Management</a>
+
+    <div class="sidebar-footer">
+        UEBA Monitoring System
+    </div>
+
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+    <!-- HEADER -->
+    <header>
+        <div>
+            <h1>SOC Dashboard</h1>
+            <p>User and Entity Behavior Analytics</p>
+        </div>
+
+        <div class="status">
+            ● SYSTEM ONLINE
+        </div>
+    </header>
+
+    <!-- SUMMARY CARDS -->
+    <section class="cards">
+
+        <div class="card">
+            <p>Total Users</p>
+            <h2>{{ total_users }}</h2>
+        </div>
+
+        <div class="card">
+            <p>Medium Risk</p>
+            <h2>{{ medium_risk }}</h2>
+        </div>
+
+        <div class="card">
+            <p>High Risk</p>
+            <h2>{{ high_risk }}</h2>
+        </div>
+
+        <div class="card">
+            <p>Critical Risk</p>
+            <h2>{{ critical_risk }}</h2>
+        </div>
+
+    </section>
+
+    <!-- RISK DISTRIBUTION -->
+    <section class="panel" id="analytics">
+
+        <h2>Risk Distribution Analytics</h2>
+
+        <div class="chart-container">
+            <canvas id="riskChart"></canvas>
+        </div>
+
+    </section>
+
+    <!-- LOGIN ACTIVITY -->
+    <section class="panel" id="login-activity">
+
+        <h2>Login Activity Monitoring</h2>
+
+        <div class="chart-container">
+            <canvas id="loginChart"></canvas>
+        </div>
+
+        <p id="loginChartError" class="no-alerts" hidden>
+            Login activity could not be loaded.
+        </p>
+
+    </section>
+
+    <!-- INCIDENT ANALYTICS -->
+    <section class="panel" id="incident-analytics">
+
+        <h2>Security Incident Analytics</h2>
+        <p class="analytics-description">
+            Analyze incident severity, investigation status and detection trends
+        </p>
+
+<div class="analytics-date-filter">
+    <label for="analyticsDateFilter">
+        Filter Analytics:
+    </label>
+
+    <select id="analyticsDateFilter"
+            onchange="applyAnalyticsDateFilter()">
+
+        <option value="all">All Time</option>
+        <option value="24h">Last 24 Hours</option>
+        <option value="7d">Last 7 Days</option>
+        <option value="30d">Last 30 Days</option>
+
+    </select>
+</div>
+<div class="analytics-export">
+    <button type="button"
+            class="investigation-btn"
+            onclick="exportAnalyticsPDF()">
+        Export Analytics PDF
+    </button>
+</div>
+        <div class="incident-analytics-grid">
+
+            <!-- Severity Distribution -->
+            <div class="analytics-card">
+                <h3>Incident Severity Distribution</h3>
+                <div class="analytics-chart-container">
+                    <canvas id="severityChart"></canvas>
+                </div>
+
+            <!-- Status Distribution -->
+            <div class="analytics-card">
+                <h3>Incident Status Statistics</h3>
+                <div class="analytics-chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Incident Trend -->
+            <div class="analytics-card trend-card">
+                <h3>Incident Detection Trends</h3>
+                <div class="analytics-chart-container">
+                    <canvas id="incidentTrendChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- INCIDENT ANALYTICS INSIGHTS -->
+        <div class="analytics-insights">
+
+            <h3>Security Analytics Insights</h3>
+
+            <div class="insights-grid">
+
+                <div class="insight-card">
+                    <span>Total Incidents Detected</span>
+                    <strong id="insightTotalIncidents">0</strong>
+                </div>
+
+                <div class="insight-card">
+                    <span>Most Common Severity</span>
+                    <strong id="insightCommonSeverity">N/A</strong>
+                </div>
+
+                <div class="insight-card">
+                    <span>Currently Open</span>
+                    <strong id="insightOpenIncidents">0</strong>
+                </div>
+
+                <div class="insight-card">
+                    <span>Resolution Rate</span>
+                    <strong id="insightResolutionRate">0%</strong>
+                </div>
+
+            </div>
+
+        </div>
+
+        <p id="incidentAnalyticsMessage" class="no-alerts" hidden>
+            Incident analytics could not be loaded.
+        </p>
+
+    </section>
+
+    <!-- USER RISK ANALYSIS -->
+    <section class="panel" id="users">
+
+        <h2>User Risk Analysis</h2>
+
+        <div class="table-container">
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Risk Score</th>
+                        <th>Risk Level</th>
+                        <th>Detection Reason</th>
+                        <th>Last Assessment</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for user in users %}
+
+                    <tr>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.risk_score }}/100</td>
+
+                        <td>
+                            <span class="risk {{ user.risk_level|lower }}">
+                                {{ user.risk_level }}
+                            </span>
+                        </td>
+
+                        <td>{{ user.reasons or "None" }}</td>
+                        <td>{{ user.timestamp }}</td>
+                    </tr>
+
+                    {% else %}
+
+                    <tr>
+                        <td colspan="5">
+                            No assessments available.
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+            </table>
+
+        </div>
+
+    </section>
+
+    <!-- INCIDENT MANAGEMENT -->
+    <section class="panel" id="alerts">
+
+        <div style="display:flex; justify-content:space-between;
+                    align-items:center; flex-wrap:wrap; gap:12px;">
+
+            <div>
+                <h2>Security Incident Management</h2>
+                <p style="color:#94a3b8;">
+                    Monitor and investigate detected security incidents
+                </p>
+            </div>
+
+            <button type="button"
+                    class="investigation-btn"
+                    onclick="loadIncidents()">
+                Refresh Incidents
+            </button>
+
+        </div>
+
+        <!-- INCIDENT SUMMARY -->
+        <div class="alert-summary"
+             style="display:flex; flex-wrap:wrap; gap:25px;">
+
+            <div>
+                Total Incidents:
+                <strong id="totalIncidents">Loading...</strong>
+            </div>
+
+            <div>
+                Open:
+                <strong id="openIncidents">0</strong>
+            </div>
+
+            <div>
+                Investigating:
+                <strong id="investigatingIncidents">0</strong>
+            </div>
+
+            <div>
+                Resolved:
+                <strong id="resolvedIncidents">0</strong>
+            </div>
+
+        </div>
+
+        <!-- INCIDENT PRIORITY SUMMARY -->
+        <div class="priority-summary">
+
+            <div class="priority-card critical-card">
+                <span>Critical Priority</span>
+                <strong id="criticalPriorityCount">0</strong>
+            </div>
+
+            <div class="priority-card high-card">
+                <span>High Priority</span>
+                <strong id="highPriorityCount">0</strong>
+            </div>
+
+        </div>
+        <!-- INCIDENT SEARCH AND FILTERS -->
+        <div class="incident-filters">
+
+            <input
+                type="text"
+                id="incidentSearch"
+                placeholder="Search by ID, username or IP address..."
+                oninput="filterIncidents()"
+            >
+
+            <select id="severityFilter"
+                    onchange="filterIncidents()">
+                <option value="">All Severities</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+            </select>
+
+            <select id="statusFilter"
+                    onchange="filterIncidents()">
+                <option value="">All Statuses</option>
+                <option value="OPEN">Open</option>
+                <option value="INVESTIGATING">Investigating</option>
+                <option value="RESOLVED">Resolved</option>
+            </select>
+
+            <button type="button"
+                    class="investigation-btn"
+                    onclick="clearIncidentFilters()">
+                Clear Filters
+            </button>
+
+        </div>
+
+        <!-- INCIDENT TABLE -->
+        <div class="table-container">
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Detection Time</th>
+                        <th>Username</th>
+                        <th>IP Address</th>
+                        <th>Alert Type</th>
+                        <th>Severity</th>
+                        <th>Details</th>
+                        <th>Status</th>
+                        <th>Update</th>
+                        <th>Investigation</th>
+                        <th>Audit History</th>
+                    </tr>
+                </thead>
+
+                <tbody id="incidentTable">
+                    <tr>
+                        <td colspan="11">Loading incidents...</td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+
+        <p id="incidentError" class="no-alerts" hidden>
+            Unable to load security incidents.
+        </p>
+
+        <p id="incidentMessage"
+           role="status"
+           aria-live="polite">
+        </p>
+
+        <!-- INVESTIGATION DETAILS PANEL -->
+        <div class="investigation-panel"
+             id="investigationPanel">
+
+            <div style="display:flex; justify-content:space-between;
+                        align-items:center; flex-wrap:wrap; gap:10px;">
+
+                <h3 id="investigationTitle">
+                    Incident Investigation
+                </h3>
+
+                <button type="button"
+                        class="investigation-btn close-btn"
+                        onclick="closeInvestigation()">
+                    Close
+                </button>
+
+            </div>
+
+            <div class="investigation-grid">
+
+                <div class="investigation-field">
+                    <label>Incident ID</label>
+                    <p id="detailId"></p>
+                </div>
+
+                <div class="investigation-field">
+                    <label>Detection Time</label>
+                    <p id="detailTime"></p>
+                </div>
+
+                <div class="investigation-field">
+                    <label>Username</label>
+                    <p id="detailUsername"></p>
+                </div>
+
+                <div class="investigation-field">
+                    <label>Source IP Address</label>
+                    <p id="detailIP"></p>
+                </div>
+
+                <div class="investigation-field">
+                    <label>Alert Type</label>
+                    <p id="detailAlertType"></p>
+                </div>
+
+                <div class="investigation-field">
+                    <label>Severity</label>
+                    <p id="detailSeverity"></p>
+                </div>
+
+                <div class="investigation-field">
+                    <label>Evidence</label>
+                    <p id="detailEvidence"></p>
+                </div>
+
+                <div class="investigation-field">
+                    <label>Recommended SOC Analyst Action</label>
+                    <p id="detailAction"></p>
+                </div>
+
+            </div>
+
+<!-- INCIDENT INVESTIGATION WORKFLOW -->
+
+<div class="workflow-section">
+
+    <h4>Investigation Workflow</h4>
+
+    <div class="workflow-tracker">
+
+        <div class="workflow-step" id="workflowOpen">
+            <div class="workflow-circle">1</div>
+            <span>New</span>
+        </div>
+
+        <div class="workflow-line" id="workflowLine1"></div>
+
+        <div class="workflow-step" id="workflowInvestigating">
+            <div class="workflow-circle">2</div>
+            <span>Under Investigation</span>
+        </div>
+
+        <div class="workflow-line" id="workflowLine2"></div>
+
+        <div class="workflow-step" id="workflowResolved">
+            <div class="workflow-circle">3</div>
+            <span>Resolved</span>
+        </div>
+
+    </div>
+
+    <p id="workflowStatusMessage">
+        Select an incident to view its progress.
+    </p>
+
+</div>
+
+            <!-- IP ADDRESS INVESTIGATION -->
+            <div class="ip-investigation-section"
+                 id="ipInvestigationSection">
+
+                <h4>IP Address Investigation</h4>
+
+                <div class="investigation-grid">
+
+                    <div class="investigation-field">
+                        <label>Investigated IP Address</label>
+                        <p id="ipInvestigationAddress">Loading...</p>
+                    </div>
+
+                    <div class="investigation-field">
+                        <label>Associated Account</label>
+                        <p id="ipInvestigationUsername">Loading...</p>
+                    </div>
+
+                </div>
+
+                <div class="ip-count-grid">
+
+                    <div class="ip-count-card">
+                        <span>Successful Logins</span>
+                        <strong id="ipSuccessfulCount">0</strong>
+                    </div>
+
+                    <div class="ip-count-card">
+                        <span>Failed Logins</span>
+                        <strong id="ipFailedCount">0</strong>
+                    </div>
+
+                    <div class="ip-count-card">
+                        <span>Total Login Records</span>
+                        <strong id="ipTotalCount">0</strong>
+                    </div>
+
+                </div>
+
+                <h4>Related Login Activity</h4>
+
+                <div class="ip-table-wrap">
+                    <table class="ip-table">
+
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Username</th>
+                                <th>IP Address</th>
+                                <th>Login Status</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="ipActivityTable">
+                            <tr>
+                                <td colspan="4">
+                                    Loading login activity...
+                                </td>
+                            </tr>
+                        </tbody>
+
+                    </table>
+                </div>
+
+                <p id="ipInvestigationMessage"
+                   class="ip-loading"
+                   aria-live="polite">
+                    Loading IP investigation data...
+                </p>
+
+                <p id="ipDataSource" class="ip-source-note"></p>
+
+            </div>
+
+            <!-- INCIDENT AUDIT TIMELINE -->
+            <div class="audit-section" id="auditSection" hidden>
+
+                <div style="display:flex; justify-content:space-between;
+                            align-items:center; flex-wrap:wrap; gap:10px;">
+
+                    <h4 id="auditTitle">Incident Audit History</h4>
+
+                    <button type="button"
+                            class="investigation-btn close-btn"
+                            onclick="closeAuditHistory()">
+                        Hide History
+                    </button>
+
+                </div>
+
+                <div id="auditTimeline" aria-live="polite">
+                    <p class="audit-empty">
+                        Select Audit History to load records.
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- INVESTIGATION NOTES -->
+            <div style="margin-top:20px;">
+
+                <label for="analystNotes">
+                    <strong>Analyst Investigation Notes</strong>
+                </label>
+
+                <textarea
+                    id="analystNotes"
+                    class="notes-area"
+                    maxlength="5000"
+                    placeholder="Enter investigation findings, verification steps and observations..."></textarea>
+
+            </div>
+
+            <!-- INVESTIGATION STATUS -->
+            <div style="margin-top:18px;">
+
+                <label for="investigationStatus">
+                    <strong>Incident Status</strong>
+                </label>
+
+                <select id="investigationStatus"
+                        style="display:block; margin-top:8px;
+                               padding:10px; border-radius:6px;
+                               background:#1e293b; color:white;
+                               border:1px solid #475569;">
+
+                    <option value="OPEN">OPEN</option>
+                    <option value="INVESTIGATING">INVESTIGATING</option>
+                    <option value="RESOLVED">RESOLVED</option>
+
+                </select>
+
+            </div>
+
+            <div class="investigation-actions">
+
+                <button type="button"
+                        class="investigation-btn"
+                        id="saveInvestigationButton"
+                        onclick="saveInvestigation()">
+                    Save Investigation
+                </button>
+
+                <button type="button"
+                        class="investigation-btn close-btn"
+                        onclick="closeInvestigation()">
+                    Close Panel
+                </button>
+
+            </div>
+
+            <p id="investigationMessage"
+               role="status"
+               aria-live="polite">
+            </p>
+
+        </div>
+
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        UEBA Security Monitoring Project |
+        SOC Analyst Portfolio
+    </footer>
+
+</div>
+
+<script>
+
+// --------------------------------
+// RISK DISTRIBUTION CHART
+// --------------------------------
+
+const riskData = {{ risk_distribution | tojson }};
+
+new Chart(
+    document.getElementById("riskChart"),
+    {
+        type: "doughnut",
+
+        data: {
+            labels: riskData.labels,
+
+            datasets: [{
+                label: "Users",
+                data: riskData.values,
+
+                backgroundColor: [
+                    "#22c55e",
+                    "#eab308",
+                    "#ef4444",
+                    "#a855f7"
+                ],
+
+                borderWidth: 2,
+                borderColor: "#151f31"
+            }]
+        },
+
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+
+            plugins: {
+                legend: {
+                    position: "bottom",
+
+                    labels: {
+                        color: "#e5e7eb",
+                        padding: 20
+                    }
+                }
+            }
+        }
+    }
+);
+
+
+// --------------------------------
+// LOGIN ACTIVITY CHART
+// --------------------------------
+
+fetch("/api/login-activity")
+
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("Login activity API failed");
+        }
+
+        return response.json();
+    })
+
+    .then(data => {
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        new Chart(
+            document.getElementById("loginChart"),
+            {
+                type: "line",
+
+                data: {
+                    labels: data.labels,
+
+                    datasets: [
+                        {
+                            label: "Successful Logins",
+                            data: data.successful,
+                            borderColor: "#22c55e",
+                            backgroundColor: "rgba(34,197,94,0.15)",
+                            tension: 0.3,
+                            fill: true
+                        },
+
+                        {
+                            label: "Failed Logins",
+                            data: data.failed,
+                            borderColor: "#ef4444",
+                            backgroundColor: "rgba(239,68,68,0.15)",
+                            tension: 0.3,
+                            fill: true
+                        }
+                    ]
+                },
+
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+
+                            labels: {
+                                color: "#e5e7eb",
+                                padding: 20
+                            }
+                        }
+                    },
+
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: "#94a3b8"
+                            },
+
+                            grid: {
+                                color: "#263247"
+                            }
+                        },
+
+                        y: {
+                            beginAtZero: true,
+
+                            ticks: {
+                                precision: 0,
+                                color: "#94a3b8"
+                            },
+
+                            grid: {
+                                color: "#263247"
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+    })
+
+    .catch(error => {
+        console.error("Login chart error:", error);
+        document.getElementById("loginChartError").hidden = false;
+    });
+
+
+// --------------------------------
+// INCIDENT MANAGEMENT
+// --------------------------------
+
+let selectedIncidentId = null;
+let allIncidents = [];
+
+// Incident analytics chart instances
+let severityChartInstance = null;
+let statusChartInstance = null;
+let incidentTrendChartInstance = null;
+
+// ==========================================
+// INCIDENT ANALYTICS CHARTS
+// ==========================================
+
+function renderIncidentAnalytics(incidents) {
+
+    const severityLabels = [
+        "CRITICAL",
+        "HIGH",
+        "MEDIUM",
+        "LOW"
+    ];
+
+    const statusLabels = [
+        "OPEN",
+        "INVESTIGATING",
+        "RESOLVED"
+    ];
+
+    // Count incidents by severity
+    const severityCounts = severityLabels.map(severity =>
+        incidents.filter(item =>
+            String(item.severity || "").toUpperCase() === severity
+        ).length
+    );
+
+    // Count incidents by investigation status
+    const statusCounts = statusLabels.map(status =>
+        incidents.filter(item =>
+            String(item.status || "").toUpperCase() === status
+        ).length
+    );
+
+    // ----------------------------------
+    // SECURITY ANALYTICS INSIGHTS
+    // ----------------------------------
+
+    const totalIncidents = incidents.length;
+
+    const openCount = statusCounts[0];
+    const resolvedCount = statusCounts[2];
+
+    // Find the most common severity
+    const maxSeverityCount = Math.max(...severityCounts);
+
+    let commonSeverity = "N/A";
+
+    if (totalIncidents > 0) {
+        const commonIndex = severityCounts.indexOf(maxSeverityCount);
+        commonSeverity = severityLabels[commonIndex];
+    }
+
+    // Calculate resolution percentage
+    const resolutionRate = totalIncidents > 0
+        ? ((resolvedCount / totalIncidents) * 100).toFixed(1)
+        : "0.0";
+
+    // Update dashboard insight cards
+    document.getElementById("insightTotalIncidents").textContent =
+        totalIncidents;
+
+    document.getElementById("insightCommonSeverity").textContent =
+        commonSeverity;
+
+    document.getElementById("insightOpenIncidents").textContent =
+        openCount;
+
+    document.getElementById("insightResolutionRate").textContent =
+        resolutionRate + "%";
+
+    // Group incidents by detection date
+    const dailyCounts = {};
+
+    incidents.forEach(incident => {
+
+        if (!incident.detected_at) return;
+
+        const date = new Date(incident.detected_at);
+
+        if (isNaN(date.getTime())) return;
+
+        const dateLabel = date.toISOString().slice(0, 10);
+
+        dailyCounts[dateLabel] =
+            (dailyCounts[dateLabel] || 0) + 1;
+
+    });
+
+    const trendDates = Object.keys(dailyCounts).sort();
+
+    const trendCounts = trendDates.map(date =>
+        dailyCounts[date]
+    );
+
+    // Common chart appearance
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: "bottom",
+                labels: {
+                    color: "#e2e8f0",
+                    padding: 18
+                }
+            }
+        }
+    };
+
+    // ----------------------------------
+    // 1. SEVERITY DISTRIBUTION
+    // ----------------------------------
+
+    const severityCanvas =
+        document.getElementById("severityChart");
+
+    if (severityChartInstance) {
+        severityChartInstance.destroy();
+    }
+
+    severityChartInstance = new Chart(severityCanvas, {
+
+        type: "doughnut",
+
+        data: {
+            labels: severityLabels,
+
+            datasets: [{
+                label: "Incidents",
+                data: severityCounts,
+
+                backgroundColor: [
+                    "#ef4444",
+                    "#f97316",
+                    "#eab308",
+                    "#22c55e"
+                ],
+
+                borderColor: "#1e293b",
+                borderWidth: 3
+            }]
+        },
+
+        options: commonOptions
+
+    });
+
+
+    // ----------------------------------
+    // 2. INCIDENT STATUS STATISTICS
+    // ----------------------------------
+
+    const statusCanvas =
+        document.getElementById("statusChart");
+
+    if (statusChartInstance) {
+        statusChartInstance.destroy();
+    }
+
+    statusChartInstance = new Chart(statusCanvas, {
+
+        type: "bar",
+
+        data: {
+            labels: statusLabels,
+
+            datasets: [{
+                label: "Number of Incidents",
+                data: statusCounts,
+
+                backgroundColor: [
+                    "#ef4444",
+                    "#3b82f6",
+                    "#22c55e"
+                ],
+
+                borderRadius: 6
+            }]
+        },
+
+        options: {
+            ...commonOptions,
+
+            scales: {
+                x: {
+                    ticks: {
+                        color: "#cbd5e1"
+                    },
+                    grid: {
+                        display: false
+                    }
+                },
+
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0,
+                        color: "#cbd5e1"
+                    },
+                    grid: {
+                        color: "#334155"
+                    }
+                }
+            }
+        }
+
+    });
+
+
+    // ----------------------------------
+    // 3. INCIDENT DETECTION TRENDS
+    // ----------------------------------
+
+    const trendCanvas =
+        document.getElementById("incidentTrendChart");
+
+    if (incidentTrendChartInstance) {
+        incidentTrendChartInstance.destroy();
+    }
+
+    incidentTrendChartInstance = new Chart(trendCanvas, {
+
+        type: "line",
+
+        data: {
+            labels: trendDates,
+
+            datasets: [{
+                label: "Detected Incidents",
+                data: trendCounts,
+
+                borderColor: "#38bdf8",
+                backgroundColor: "rgba(56,189,248,0.15)",
+
+                pointBackgroundColor: "#38bdf8",
+                pointRadius: 5,
+
+                tension: 0.3,
+                fill: true
+            }]
+        },
+
+        options: {
+            ...commonOptions,
+
+            scales: {
+                x: {
+                    ticks: {
+                        color: "#cbd5e1"
+                    },
+                    grid: {
+                        color: "#334155"
+                    }
+                },
+
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0,
+                        color: "#cbd5e1"
+                    },
+                    grid: {
+                        color: "#334155"
+                    }
+                }
+            }
+        }
+
+    });
+
+}
+
+// ==========================================
+// APPLY INCIDENT ANALYTICS DATE FILTER
+// ==========================================
+
+function applyAnalyticsDateFilter() {
+
+    const filterValue =
+        document.getElementById("analyticsDateFilter").value;
+
+    const now = new Date();
+
+    let filteredIncidents = allIncidents;
+    let duration = null;
+
+    if (filterValue === "24h") {
+        duration = 24 * 60 * 60 * 1000;
+    } else if (filterValue === "7d") {
+        duration = 7 * 24 * 60 * 60 * 1000;
+    } else if (filterValue === "30d") {
+        duration = 30 * 24 * 60 * 60 * 1000;
+    }
+
+    if (duration !== null) {
+        const startTime = now.getTime() - duration;
+
+        filteredIncidents = allIncidents.filter(incident => {
+            if (!incident.detected_at) return false;
+
+            const detectedDate = new Date(incident.detected_at);
+
+            return (
+                !isNaN(detectedDate.getTime()) &&
+                detectedDate.getTime() >= startTime &&
+                detectedDate.getTime() <= now.getTime()
+            );
+        });
+    }
+
+    renderIncidentAnalytics(filteredIncidents);
+}
+
+async function loadIncidents() {
+
+    const table = document.getElementById("incidentTable");
+    const errorMessage = document.getElementById("incidentError");
+    const message = document.getElementById("incidentMessage");
+
+    errorMessage.hidden = true;
+    message.textContent = "";
+
+    table.innerHTML = `
+        <tr>
+            <td colspan="11">Loading incidents...</td>
+        </tr>
+    `;
+
+    try {
+
+        const response = await fetch("/api/incidents");
+
+        if (!response.ok) {
+            throw new Error("Incident API request failed");
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+const incidents = data.incidents || [];
+
+allIncidents = incidents;
+
+applyAnalyticsDateFilter();
+        // Sort incidents by severity priority
+const severityOrder = {
+    "CRITICAL": 1,
+    "HIGH": 2,
+    "MEDIUM": 3,
+    "LOW": 4
+};
+
+incidents.sort((a, b) => {
+    const priorityA =
+        severityOrder[String(a.severity).toUpperCase()] || 5;
+
+    const priorityB =
+        severityOrder[String(b.severity).toUpperCase()] || 5;
+
+    return priorityA - priorityB;
+});
+
+        // Update Critical and High priority counters
+       document.getElementById("criticalPriorityCount").textContent =
+           incidents.filter(item =>
+               String(item.severity).toUpperCase() === "CRITICAL"
+        ).length;
+
+        document.getElementById("highPriorityCount").textContent =
+            incidents.filter(item =>
+                 String(item.severity).toUpperCase() === "HIGH"
+            ).length;
+
+        document.getElementById("totalIncidents").textContent =
+            incidents.length;
+
+        document.getElementById("openIncidents").textContent =
+            incidents.filter(item => item.status === "OPEN").length;
+
+        document.getElementById("investigatingIncidents").textContent =
+            incidents.filter(item => item.status === "INVESTIGATING").length;
+
+        document.getElementById("resolvedIncidents").textContent =
+            incidents.filter(item => item.status === "RESOLVED").length;
+
+        table.innerHTML = "";
+
+        if (incidents.length === 0) {
+
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+
+            cell.colSpan = 11;
+            cell.textContent = "No security incidents found.";
+
+            row.appendChild(cell);
+            table.appendChild(row);
+
+            return;
+        }
+
+        incidents.forEach(incident => {
+
+            const row = document.createElement("tr");
+
+            function addCell(value) {
+                const cell = document.createElement("td");
+                cell.textContent = value ?? "";
+                row.appendChild(cell);
+                return cell;
+            }
+
+            addCell(incident.id);
+            addCell(incident.detected_at);
+            addCell(incident.username);
+            addCell(incident.ip_address);
+            addCell(incident.alert_type);
+
+            // Severity badge
+            const severityCell = document.createElement("td");
+            const severityBadge = document.createElement("span");
+
+            severityBadge.className =
+                "risk " + String(incident.severity).toLowerCase();
+
+            severityBadge.textContent = incident.severity;
+
+            severityCell.appendChild(severityBadge);
+            row.appendChild(severityCell);
+
+            addCell(incident.details);
+
+            // Status dropdown
+            const statusCell = document.createElement("td");
+            const statusSelect = document.createElement("select");
+
+            statusSelect.style.padding = "7px";
+            statusSelect.style.borderRadius = "5px";
+            statusSelect.style.background = "#1e293b";
+            statusSelect.style.color = "#ffffff";
+            statusSelect.style.border = "1px solid #475569";
+
+            ["OPEN", "INVESTIGATING", "RESOLVED"].forEach(status => {
+
+                const option = document.createElement("option");
+
+                option.value = status;
+                option.textContent = status;
+                option.selected = incident.status === status;
+
+                statusSelect.appendChild(option);
+
+            });
+
+            statusCell.appendChild(statusSelect);
+            row.appendChild(statusCell);
+
+            // Status update button
+            const updateCell = document.createElement("td");
+            const updateButton = document.createElement("button");
+
+            updateButton.type = "button";
+            updateButton.textContent = "Update";
+            updateButton.className = "investigation-btn";
+
+            updateButton.addEventListener("click", () => {
+                updateIncidentStatus(
+                    incident.id,
+                    statusSelect.value,
+                    updateButton
+                );
+            });
+
+            updateCell.appendChild(updateButton);
+            row.appendChild(updateCell);
+
+            // View investigation button
+            const viewCell = document.createElement("td");
+            const viewButton = document.createElement("button");
+
+            viewButton.type = "button";
+            viewButton.textContent = "View Details";
+            viewButton.className = "view-btn";
+
+            viewButton.addEventListener("click", () => {
+                openInvestigation(incident.id);
+            });
+
+            viewCell.appendChild(viewButton);
+            row.appendChild(viewCell);
+
+            // Audit history button
+            const auditCell = document.createElement("td");
+            const auditButton = document.createElement("button");
+
+            auditButton.type = "button";
+            auditButton.textContent = "Audit History";
+            auditButton.className = "audit-btn";
+
+            auditButton.addEventListener("click", () => {
+                openAuditHistory(incident.id);
+            });
+
+            auditCell.appendChild(auditButton);
+            row.appendChild(auditCell);
+
+            table.appendChild(row);
+
+        });
+
+    }
+
+    catch (error) {
+
+        console.error("Incident loading error:", error);
+
+        table.innerHTML = "";
+        errorMessage.hidden = false;
+
+        document.getElementById("totalIncidents").textContent =
+            "Unavailable";
+
+    }
+
+}
+
+
+// --------------------------------
+// INCIDENT SEARCH AND FILTERS
+// --------------------------------
+
+function filterIncidents() {
+
+    const table = document.getElementById("incidentTable");
+
+    const searchText = document
+        .getElementById("incidentSearch")
+        .value.toLowerCase().trim();
+
+    const severityValue = document
+        .getElementById("severityFilter")
+        .value.toUpperCase();
+
+    const statusValue = document
+        .getElementById("statusFilter")
+        .value.toUpperCase();
+
+    const rows = Array.from(table.querySelectorAll("tr"));
+
+    let visibleCount = 0;
+
+    const oldMessage = document.getElementById("noFilterResults");
+
+    if (oldMessage) {
+        oldMessage.remove();
+    }
+
+    rows.forEach(row => {
+
+        if (row.cells.length !== 11) {
+            return;
+        }
+
+        const incidentId = row.cells[0].textContent.toLowerCase();
+        const username = row.cells[2].textContent.toLowerCase();
+        const ipAddress = row.cells[3].textContent.toLowerCase();
+        const severity = row.cells[5].textContent.toUpperCase();
+
+        const statusSelect = row.cells[7].querySelector("select");
+
+        const status = statusSelect
+            ? statusSelect.value.toUpperCase()
+            : "";
+
+        const matchesSearch =
+            incidentId.includes(searchText) ||
+            username.includes(searchText) ||
+            ipAddress.includes(searchText);
+
+        const matchesSeverity =
+            !severityValue || severity === severityValue;
+
+        const matchesStatus =
+            !statusValue || status === statusValue;
+
+        const isVisible =
+            matchesSearch && matchesSeverity && matchesStatus;
+
+        row.style.display = isVisible ? "" : "none";
+
+        if (isVisible) {
+            visibleCount++;
+        }
+
+    });
+
+    if (visibleCount === 0) {
+
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+
+        row.id = "noFilterResults";
+        cell.colSpan = 11;
+        cell.textContent = "No incidents match the selected filters.";
+
+        row.appendChild(cell);
+        table.appendChild(row);
+
+    }
+
+}
+
+
+function clearIncidentFilters() {
+
+    document.getElementById("incidentSearch").value = "";
+    document.getElementById("severityFilter").value = "";
+    document.getElementById("statusFilter").value = "";
+
+    filterIncidents();
+
+}
+
+// --------------------------------
+// UPDATE INCIDENT STATUS
+// --------------------------------
+
+async function updateIncidentStatus(incidentId, newStatus, button) {
+
+    const message = document.getElementById("incidentMessage");
+
+    button.disabled = true;
+    button.textContent = "Updating...";
+
+    try {
+
+        const response = await fetch(
+            `/api/incidents/${incidentId}/status`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    status: newStatus
+                })
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || "Status update failed");
+        }
+
+        message.textContent =
+            `Incident #${incidentId} updated to ${newStatus}`;
+
+        message.style.color = "#22c55e";
+
+        await loadIncidents();
+
+    }
+
+    catch (error) {
+
+        console.error("Status update error:", error);
+
+        message.textContent = error.message;
+        message.style.color = "#ef4444";
+
+        button.disabled = false;
+        button.textContent = "Update";
+
+    }
+
+}
+
+function updateWorkflow(status) {
+
+    const steps = [
+        document.getElementById("workflowOpen"),
+        document.getElementById("workflowInvestigating"),
+        document.getElementById("workflowResolved")
+    ];
+
+    const lines = [
+        document.getElementById("workflowLine1"),
+        document.getElementById("workflowLine2")
+    ];
+
+    const message = document.getElementById("workflowStatusMessage");
+
+    const current = String(status || "OPEN").toUpperCase();
+
+    steps.forEach(step => {
+        step.classList.remove("active", "completed");
+    });
+
+    lines.forEach(line => {
+        line.classList.remove("completed");
+    });
+
+    if (current === "OPEN") {
+        steps[0].classList.add("active");
+        message.textContent = "Incident received. Waiting for investigation.";
+
+    } else if (current === "INVESTIGATING") {
+        steps[0].classList.add("completed");
+        steps[1].classList.add("active");
+        lines[0].classList.add("completed");
+        message.textContent = "SOC analyst is investigating this incident.";
+
+    } else if (current === "RESOLVED") {
+        steps.forEach(step => step.classList.add("completed"));
+        lines.forEach(line => line.classList.add("completed"));
+        message.textContent = "Investigation completed. Incident resolved.";
+    }
+}
+
+
+// --------------------------------
+// OPEN INCIDENT INVESTIGATION
+// --------------------------------
+
+async function openInvestigation(incidentId) {
+
+    const panel = document.getElementById("investigationPanel");
+    const message = document.getElementById("investigationMessage");
+
+    selectedIncidentId = incidentId;
+
+    panel.style.display = "block";
+
+    document.getElementById("auditSection").hidden = true;
+
+    document.getElementById("investigationTitle").textContent =
+        `Investigation: Incident #${incidentId}`;
+
+    message.textContent = "Loading incident details...";
+    message.style.color = "#94a3b8";
+
+    document.getElementById("analystNotes").value = "";
+
+    document.getElementById("ipInvestigationMessage").textContent =
+        "Loading IP investigation data...";
+
+    document.getElementById("ipActivityTable").innerHTML =
+        '<tr><td colspan="4">Loading login activity...</td></tr>';
+
+    try {
+
+        const response = await fetch(
+            `/api/incidents/${incidentId}`
+        );
+
+        if (!response.ok) {
+            throw new Error("Unable to retrieve incident details");
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        const incident = data.incident;
+
+// Update investigation workflow
+updateWorkflow(incident.status);
+        document.getElementById("detailId").textContent =
+            incident.id;
+
+        document.getElementById("detailTime").textContent =
+            incident.detected_at || "Not available";
+
+        document.getElementById("detailUsername").textContent =
+            incident.username;
+
+        document.getElementById("detailIP").textContent =
+            incident.ip_address;
+
+        document.getElementById("detailAlertType").textContent =
+            incident.alert_type;
+
+        document.getElementById("detailSeverity").textContent =
+            incident.severity;
+
+        document.getElementById("detailEvidence").textContent =
+            incident.evidence || incident.details || "No evidence available";
+
+ 
+const severityActions = {
+    CRITICAL: "Immediately investigate the incident, validate the activity, contain the affected account if necessary, and escalate to the SOC L2 team.",
+
+    HIGH: "Investigate promptly, verify the source IP and user activity, review related login events, and escalate suspicious findings.",
+
+    MEDIUM: "Review the account activity, verify whether the behavior is expected, and monitor for additional suspicious events.",
+
+    LOW: "Document the finding, review available evidence, and continue routine monitoring."
+};
+
+const incidentSeverity =
+    String(incident.severity || "").toUpperCase();
+
+document.getElementById("detailAction").textContent =
+    severityActions[incidentSeverity] ||
+    incident.recommended_action ||
+    "No recommended action available";
+
+
+        document.getElementById("analystNotes").value =
+            incident.analyst_notes || "";
+
+        document.getElementById("investigationStatus").value =
+            incident.status;
+
+        message.textContent = "Incident details loaded.";
+        message.style.color = "#22c55e";
+
+        // Load related IP investigation
+        await loadIPInvestigation(incidentId);
+
+        panel.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+
+    }
+
+    catch (error) {
+
+        console.error("Investigation error:", error);
+
+        message.textContent = error.message;
+        message.style.color = "#ef4444";
+
+    }
+
+}
+
+
+// --------------------------------
+// LOAD IP INVESTIGATION DATA
+// --------------------------------
+
+async function loadIPInvestigation(incidentId) {
+
+    const activityTable =
+        document.getElementById("ipActivityTable");
+
+    const message =
+        document.getElementById("ipInvestigationMessage");
+
+    message.textContent = "Loading IP investigation data...";
+    message.style.color = "#94a3b8";
+
+    activityTable.innerHTML =
+        '<tr><td colspan="4">Loading login activity...</td></tr>';
+
+    try {
+
+        const response = await fetch(
+            `/api/incidents/${incidentId}/ip-investigation`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Unable to load IP investigation");
+        }
+
+        const incident = data.incident;
+        const summary = data.login_summary;
+        const events = data.related_activity || [];
+
+        document.getElementById("ipInvestigationAddress").textContent =
+            incident.ip_address || "Not available";
+
+        document.getElementById("ipInvestigationUsername").textContent =
+            incident.username || "Not available";
+
+        document.getElementById("ipSuccessfulCount").textContent =
+            summary.successful_logins ?? 0;
+
+        document.getElementById("ipFailedCount").textContent =
+            summary.failed_logins ?? 0;
+
+        document.getElementById("ipTotalCount").textContent =
+            summary.total_logins ?? 0;
+
+        activityTable.innerHTML = "";
+
+        if (events.length === 0) {
+
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+
+            cell.colSpan = 4;
+            cell.textContent = "No related login activity found.";
+
+            row.appendChild(cell);
+            activityTable.appendChild(row);
+
+        } else {
+
+            events.forEach(event => {
+
+                const row = document.createElement("tr");
+
+                const timestampCell = document.createElement("td");
+                timestampCell.textContent = event.timestamp || "N/A";
+
+                const usernameCell = document.createElement("td");
+                usernameCell.textContent = event.username || "N/A";
+
+                const ipCell = document.createElement("td");
+                ipCell.textContent = event.ip_address || "N/A";
+
+                const statusCell = document.createElement("td");
+                statusCell.textContent =
+                    String(event.status || "unknown").toUpperCase();
+
+                if (event.status === "success") {
+                    statusCell.className = "ip-status-success";
+                } else if (event.status === "failed") {
+                    statusCell.className = "ip-status-failed";
+                }
+
+                row.appendChild(timestampCell);
+                row.appendChild(usernameCell);
+                row.appendChild(ipCell);
+                row.appendChild(statusCell);
+
+                activityTable.appendChild(row);
+
+            });
+
+        }
+
+        document.getElementById("ipDataSource").textContent =
+            "Data source: " + (data.data_source || "Not specified");
+
+        message.textContent =
+            "IP investigation data loaded successfully.";
+
+        message.style.color = "#22c55e";
+
+    }
+
+    catch (error) {
+
+        console.error("IP investigation error:", error);
+
+        message.textContent = error.message;
+        message.style.color = "#ef4444";
+
+        activityTable.innerHTML = "";
+
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+
+        cell.colSpan = 4;
+        cell.textContent = "Unable to retrieve related login activity.";
+
+        row.appendChild(cell);
+        activityTable.appendChild(row);
+
+    }
+
+}
+
+
+// --------------------------------
+// LOAD INCIDENT AUDIT HISTORY
+// --------------------------------
+
+async function openAuditHistory(incidentId) {
+
+    await openInvestigation(incidentId);
+
+    const auditSection =
+        document.getElementById("auditSection");
+
+    const timeline =
+        document.getElementById("auditTimeline");
+
+    const title =
+        document.getElementById("auditTitle");
+
+    auditSection.hidden = false;
+
+    title.textContent =
+        `Audit History: Incident #${incidentId}`;
+
+    timeline.innerHTML =
+        '<p class="audit-empty">Loading audit history...</p>';
+
+    try {
+
+        const response = await fetch(
+            `/api/incidents/${incidentId}/audit`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Unable to load audit history"
+            );
+        }
+
+        const records = data.audit_history || [];
+
+        timeline.innerHTML = "";
+
+        if (records.length === 0) {
+
+            timeline.innerHTML =
+                '<p class="audit-empty">No audit records are available for this incident yet.</p>';
+
+        } else {
+
+            records.forEach(record => {
+
+                const entry = document.createElement("div");
+                entry.className = "audit-entry";
+
+                const action = document.createElement("strong");
+
+                action.textContent =
+                    String(record.action || "UPDATE")
+                    .replaceAll("_", " ");
+
+                const details = document.createElement("p");
+
+                details.style.margin = "7px 0 0";
+                details.style.color = "#e2e8f0";
+
+                if (
+                    record.previous_status ||
+                    record.new_status
+                ) {
+
+                    details.textContent =
+                        `Status: ${record.previous_status || "N/A"} → ${record.new_status || "N/A"}`;
+
+                } else {
+
+                    details.textContent =
+                        "Incident information updated.";
+
+                }
+
+                const notes = document.createElement("p");
+
+                notes.style.margin = "7px 0 0";
+                notes.style.color = "#cbd5e1";
+
+                notes.textContent = record.analyst_notes
+                    ? `Analyst notes: ${record.analyst_notes}`
+                    : "No analyst notes recorded for this change.";
+
+                const timestamp = document.createElement("div");
+
+                timestamp.className = "audit-meta";
+
+                timestamp.textContent =
+                    `Recorded: ${record.changed_at || "Time unavailable"}`;
+
+                entry.appendChild(action);
+                entry.appendChild(details);
+                entry.appendChild(notes);
+                entry.appendChild(timestamp);
+
+                timeline.appendChild(entry);
+
+            });
+
+        }
+
+        auditSection.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest"
+        });
+
+    } catch (error) {
+
+        console.error("Audit history error:", error);
+
+        timeline.innerHTML = "";
+
+        const errorText = document.createElement("p");
+
+        errorText.className = "audit-error";
+        errorText.textContent = error.message;
+
+        timeline.appendChild(errorText);
+
+    }
+
+}
+
+
+// --------------------------------
+// CLOSE AUDIT HISTORY
+// --------------------------------
+
+function closeAuditHistory() {
+
+    document.getElementById("auditSection").hidden = true;
+
+}
+
+
+// --------------------------------
+// SAVE INVESTIGATION NOTES
+// --------------------------------
+
+async function saveInvestigation() {
+
+    if (selectedIncidentId === null) {
+        return;
+    }
+
+    const button =
+        document.getElementById("saveInvestigationButton");
+
+    const message =
+        document.getElementById("investigationMessage");
+
+    const analystNotes =
+        document.getElementById("analystNotes").value;
+
+    const status =
+        document.getElementById("investigationStatus").value;
+
+    button.disabled = true;
+    button.textContent = "Saving...";
+
+    try {
+
+        const response = await fetch(
+            `/api/incidents/${selectedIncidentId}/investigation`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    analyst_notes: analystNotes,
+                    status: status
+                })
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.error || "Unable to save investigation"
+            );
+        }
+
+        message.textContent =
+            `Investigation for incident #${selectedIncidentId} saved successfully.`;
+
+        message.style.color = "#22c55e";
+        message.textContent =
+    `Investigation for incident #${selectedIncidentId} saved successfully.`;
+
+message.style.color = "#22c55e";
+
+// Refresh investigation workflow
+updateWorkflow(status);
+
+
+        await loadIncidents();
+
+    }
+
+    catch (error) {
+
+        console.error("Investigation save error:", error);
+
+        message.textContent = error.message;
+        message.style.color = "#ef4444";
+
+    }
+
+    finally {
+
+        button.disabled = false;
+        button.textContent = "Save Investigation";
+
+    }
+
+}
+
+
+// --------------------------------
+// CLOSE INVESTIGATION PANEL
+// --------------------------------
+
+function closeInvestigation() {
+
+    document.getElementById("investigationPanel").style.display =
+        "none";
+
+    selectedIncidentId = null;
+
+}
+
+
+
+ // --------------------------------
+ // LOAD INCIDENTS WHEN PAGE OPENS
+ // --------------------------------
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadIncidents();
+});
+
+
+// --------------------------------
+// EXPORT ANALYTICS AS PDF
+// --------------------------------
+
+
+window.exportAnalyticsPDF = function () {
+
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert("PDF library is not loaded.");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 15;
+
+    // Report colors
+    const navy = [15, 35, 60];
+    const blue = [37, 99, 235];
+    const grey = [100, 116, 139];
+
+    // Header function
+    function addHeader(title) {
+        pdf.setFillColor(...navy);
+        pdf.rect(0, 0, pageWidth, 35, "F");
+
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(17);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("UEBA SECURITY MONITORING", margin, 15);
+
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(title, margin, 25);
+
+        pdf.setTextColor(30, 41, 59);
+    }
+
+    // Footer function
+    function addFooter(pageNumber) {
+        pdf.setDrawColor(203, 213, 225);
+        pdf.line(
+            margin,
+            pageHeight - 15,
+            pageWidth - margin,
+            pageHeight - 15
+        );
+
+        pdf.setFontSize(8);
+        pdf.setTextColor(...grey);
+
+        pdf.text(
+            "UEBA SOC Analyst Portfolio Project",
+            margin,
+            pageHeight - 9
+        );
+
+        pdf.text(
+            "Page " + pageNumber + " of 3",
+            pageWidth - margin,
+            pageHeight - 9,
+            { align: "right" }
+        );
+    }
+
+    // Add chart while preserving its proportions
+    
+function addChart(canvasId, title, x, y, maxWidth, maxHeight) {
+
+    const canvas = document.getElementById(canvasId);
+
+    if (!canvas) return;
+
+    const chart = Chart.getChart(canvas);
+    let originalOptions = null;
+
+    // Temporarily change chart colors for PDF readability
+    if (chart) {
+
+        originalOptions = {
+            legend: chart.options.plugins?.legend?.labels?.color,
+            xTicks: chart.options.scales?.x?.ticks?.color,
+            yTicks: chart.options.scales?.y?.ticks?.color,
+            xGrid: chart.options.scales?.x?.grid?.color,
+            yGrid: chart.options.scales?.y?.grid?.color
+        };
+
+        if (chart.options.plugins?.legend?.labels) {
+            chart.options.plugins.legend.labels.color = "#334155";
+        }
+
+        if (chart.options.scales?.x?.ticks) {
+            chart.options.scales.x.ticks.color = "#334155";
+        }
+
+        if (chart.options.scales?.y?.ticks) {
+            chart.options.scales.y.ticks.color = "#334155";
+        }
+
+        if (chart.options.scales?.x?.grid) {
+            chart.options.scales.x.grid.color = "#cbd5e1";
+        }
+
+        if (chart.options.scales?.y?.grid) {
+            chart.options.scales.y.grid.color = "#cbd5e1";
+        }
+
+        chart.update("none");
+    }
+
+    // Add chart title
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(...navy);
+    pdf.text(title, x, y);
+
+    // Export chart image
+    const image = canvas.toDataURL("image/png");
+
+    const scale = Math.min(
+        maxWidth / canvas.width,
+        maxHeight / canvas.height
+    );
+
+    const width = canvas.width * scale;
+    const height = canvas.height * scale;
+
+    pdf.addImage(
+        image,
+        "PNG",
+        x + (maxWidth - width) / 2,
+        y + 5,
+        width,
+        height
+    );
+
+    // Restore original dashboard colors
+    if (chart && originalOptions) {
+
+        if (chart.options.plugins?.legend?.labels) {
+            chart.options.plugins.legend.labels.color =
+                originalOptions.legend;
+        }
+
+        if (chart.options.scales?.x?.ticks) {
+            chart.options.scales.x.ticks.color =
+                originalOptions.xTicks;
+        }
+
+        if (chart.options.scales?.y?.ticks) {
+            chart.options.scales.y.ticks.color =
+                originalOptions.yTicks;
+        }
+
+        if (chart.options.scales?.x?.grid) {
+            chart.options.scales.x.grid.color =
+                originalOptions.xGrid;
+        }
+
+        if (chart.options.scales?.y?.grid) {
+            chart.options.scales.y.grid.color =
+                originalOptions.yGrid;
+        }
+
+        chart.update("none");
+    }
+}
+    // --------------------------------
+    // PAGE 1: INCIDENT SUMMARY
+    // --------------------------------
+
+    addHeader("Security Incident Analytics Report");
+
+    let y = 47;
+
+    pdf.setFontSize(10);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(...grey);
+
+    pdf.text(
+        "Generated: " + new Date().toLocaleString(),
+        margin,
+        y
+    );
+
+    y += 8;
+
+    const filter = document.getElementById("analyticsDateFilter");
+
+    if (filter) {
+        pdf.text(
+            "Date Range: " +
+            filter.options[filter.selectedIndex].text,
+            margin,
+            y
+        );
+    }
+
+    y += 14;
+
+    pdf.setTextColor(...navy);
+    pdf.setFontSize(14);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Security Analytics Summary", margin, y);
+
+    y += 10;
+
+    const summaries = [
+        ["Total Incidents Detected", "insightTotalIncidents"],
+        ["Most Common Severity", "insightCommonSeverity"],
+        ["Currently Open", "insightOpenIncidents"],
+        ["Resolution Rate", "insightResolutionRate"]
+    ];
+
+    const cardGap = 5;
+    const cardWidth = (pageWidth - margin * 2 - cardGap) / 2;
+    const cardHeight = 22;
+
+    summaries.forEach((item, index) => {
+
+        const col = index % 2;
+        const row = Math.floor(index / 2);
+
+        const x = margin + col * (cardWidth + cardGap);
+        const cardY = y + row * (cardHeight + 5);
+
+        const value = document.getElementById(item[1])?.textContent || "N/A";
+
+        pdf.setFillColor(239, 246, 255);
+        pdf.setDrawColor(203, 213, 225);
+
+        pdf.roundedRect(
+            x, cardY, cardWidth, cardHeight, 2, 2, "FD"
+        );
+
+        pdf.setFontSize(8);
+        pdf.setTextColor(...grey);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(item[0], x + 5, cardY + 8);
+
+        pdf.setFontSize(13);
+        pdf.setTextColor(...blue);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(String(value), x + 5, cardY + 17);
+    });
+
+    addChart(
+        "severityChart",
+        "Incident Severity Distribution",
+        margin,
+        y + 58,
+        pageWidth - margin * 2,
+        105
+    );
+
+    addFooter(1);
+
+    
+    // --------------------------------
+    // PAGE 2: INCIDENT DETAILS TABLE
+    // --------------------------------
+
+    pdf.addPage();
+
+    addHeader("Security Incident Investigation Records");
+
+    pdf.setFontSize(10);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(
+        "Incident records and investigation status",
+        margin,
+        45
+    );
+
+    const columns = [
+        { title: "ID", key: "id", width: 10 },
+        { title: "Detection Time", key: "detected_at", width: 38 },
+        { title: "Username", key: "username", width: 25 },
+        { title: "Source IP", key: "ip_address", width: 32 },
+        { title: "Severity", key: "severity", width: 25 },
+        { title: "Status", key: "status", width: 35 }
+    ];
+
+    const tableX = margin;
+    const tableWidth = columns.reduce(
+        (sum, column) => sum + column.width, 0
+    );
+
+    let tableY = 55;
+    const rowPadding = 3;
+    const lineHeight = 4.5;
+
+    function drawTableHeader() {
+
+        pdf.setFillColor(15, 35, 60);
+        pdf.rect(tableX, tableY, tableWidth, 11, "F");
+
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(255, 255, 255);
+
+        let x = tableX;
+
+        columns.forEach(column => {
+            pdf.text(
+                column.title,
+                x + 2,
+                tableY + 7
+            );
+
+            x += column.width;
+        });
+
+        tableY += 11;
+    }
+
+    drawTableHeader();
+
+    const reportIncidents = allIncidents || [];
+
+    if (reportIncidents.length === 0) {
+
+        pdf.setTextColor(100, 116, 139);
+        pdf.setFontSize(10);
+
+        pdf.text(
+            "No incident records available.",
+            margin,
+            tableY + 10
+        );
+
+    } else {
+
+        reportIncidents.forEach((incident, index) => {
+
+            const values = [
+                String(incident.id ?? ""),
+                String(incident.detected_at ?? "N/A"),
+                String(incident.username ?? "N/A"),
+                String(incident.ip_address ?? "N/A"),
+                String(incident.severity ?? "N/A"),
+                String(incident.status ?? "N/A")
+            ];
+
+            const wrappedValues = values.map((value, i) =>
+                pdf.splitTextToSize(
+                    value,
+                    columns[i].width - 4
+                )
+            );
+
+            const maxLines = Math.max(
+                ...wrappedValues.map(lines => lines.length)
+            );
+
+            const rowHeight = Math.max(
+                10,
+                maxLines * lineHeight + rowPadding * 2
+            );
+
+            if (tableY + rowHeight > 275) {
+                pdf.addPage();
+                addHeader("Security Incident Investigation Records");
+                tableY = 45;
+                drawTableHeader();
+            }
+
+            pdf.setFillColor(
+                index % 2 === 0 ? 241 : 255,
+                index % 2 === 0 ? 245 : 255,
+                index % 2 === 0 ? 249 : 255
+            );
+
+            pdf.setDrawColor(203, 213, 225);
+
+            pdf.rect(
+                tableX,
+                tableY,
+                tableWidth,
+                rowHeight,
+                "FD"
+            );
+
+            let x = tableX;
+
+            pdf.setFontSize(7.5);
+            pdf.setFont("helvetica", "normal");
+            pdf.setTextColor(30, 41, 59);
+
+            wrappedValues.forEach((lines, i) => {
+
+                pdf.text(
+                    lines,
+                    x + 2,
+                    tableY + rowPadding + lineHeight
+                );
+
+                x += columns[i].width;
+            });
+
+            tableY += rowHeight;
+        });
+    }
+
+   
+    // --------------------------------
+    // INCIDENT INVESTIGATION FINDINGS
+    // --------------------------------
+
+    let findingsY = Math.max(tableY + 14, 125);
+
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(15, 35, 60);
+
+    pdf.text("Incident Investigation Findings", margin, findingsY);
+
+    findingsY += 9;
+
+    reportIncidents.forEach((incident, index) => {
+
+        const notes = String(
+            incident.analyst_notes || "No analyst notes recorded."
+        );
+
+        const action = String(
+            incident.recommended_action ||
+            "No recommended action recorded."
+        );
+
+        const contentWidth = pageWidth - margin * 2 - 8;
+
+        // Keep the complete text, without truncating lines
+        const noteLines = pdf.splitTextToSize(
+            "Analyst Notes: " + notes,
+            contentWidth
+        );
+
+        const actionLines = pdf.splitTextToSize(
+            "Recommended Action: " + action,
+            contentWidth
+        );
+
+        const lineHeight = 3.8;
+        const headerHeight = 9;
+        const padding = 4;
+
+        const blockHeight =
+            headerHeight +
+            (noteLines.length + actionLines.length) * lineHeight +
+            padding * 2;
+
+        // Stop before overlapping the footer
+        if (findingsY + blockHeight > 280) {
+            console.warn(
+                "Not enough space for all findings on page 2. " +
+                "Reduce the number of incidents per report."
+            );
+            return;
+        }
+
+        pdf.setFillColor(241, 245, 249);
+
+        pdf.setDrawColor(203, 213, 225);
+
+        pdf.roundedRect(
+            margin,
+            findingsY,
+            pageWidth - margin * 2,
+            blockHeight,
+            2,
+            2,
+            "FD"
+        );
+
+        pdf.setFontSize(8.5);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(37, 99, 235);
+
+        pdf.text(
+            "Incident #" + incident.id +
+            " | " + String(incident.severity || "N/A") +
+            " | " + String(incident.status || "N/A"),
+            margin + 4,
+            findingsY + 6
+        );
+
+        pdf.setFontSize(7.5);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(30, 41, 59);
+
+        let textY = findingsY + headerHeight;
+
+        pdf.text(
+            noteLines,
+            margin + 4,
+            textY
+        );
+
+        textY += noteLines.length * lineHeight;
+
+        pdf.text(
+            actionLines,
+            margin + 4,
+            textY
+        );
+
+        findingsY += blockHeight + 3;
+    });
+    addFooter(2);
+
+
+    // --------------------------------
+    // PAGE 3: INCIDENT CHARTS
+    // --------------------------------
+
+    pdf.addPage();
+
+    addHeader("Incident Status and Detection Trends");
+
+    addChart(
+        "statusChart",
+        "Incident Status Statistics",
+        margin,
+        52,
+        pageWidth - margin * 2,
+        85
+    );
+
+    pdf.setDrawColor(203, 213, 225);
+    pdf.line(margin, 150, pageWidth - margin, 150);
+
+    addChart(
+        "incidentTrendChart",
+        "Incident Detection Trends",
+        margin,
+        160,
+        pageWidth - margin * 2,
+        85
+    );
+
+    addFooter(3);
+    // Download report
+    pdf.save("UEBA_SOC_Complete_Incident_Report.pdf");
+};
+</script>
+
+</body>
+</html>

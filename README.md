@@ -84,6 +84,23 @@ UEBA-Security-Monitor/
 ```
 
 ## Detection Workflow
+## Dashboard Screenshots
+
+The following screenshots demonstrate the UEBA monitoring dashboard and its investigation capabilities.
+
+### 1. Main UEBA Dashboard
+![UEBA Main Dashboard](screenshots/dashboard.png)
+
+### 2. Incident Analytics
+![Incident Analytics](screenshots/incident-analytics.png)
+
+### 3. Incident Investigation Panel
+![Incident Investigation](screenshots/investigation-panel.png)
+
+### 4. PDF Incident Report
+![UEBA Incident Report](screenshots/incident-report.png)
+
+---
 
 1. Collect login activity from the sample dataset.
 2. Compare login IP addresses against predefined user baseline IPs.
